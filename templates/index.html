@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Logic Coverage Web App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="card intro-card">
+        <p class="eyebrow">Software Testing Assignment</p>
+        <h1>Logic Coverage Web App</h1>
+        <p class="hero-text">
+          Enter a Boolean predicate, choose a criterion to highlight, and inspect the generated tests and truth table.
+        </p>
+        <p class="panel-note">
+          Supported operators: <code>!</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&gt;</code>, <code>=</code>. Parentheses are supported and whitespace is ignored.
+        </p>
+      </section>
+
+      <section class="card form-card">
+        <form method="post" class="analysis-form">
+          <label for="predicate">Predicate</label>
+          <textarea id="predicate" name="predicate" rows="4" placeholder="Example: (a &amp; b) | c">{{ predicate }}</textarea>
+
+          <div class="form-row">
+            <div>
+              <label for="criterion">Highlight Criterion</label>
+              <select id="criterion" name="criterion">
+                {% for code in criterion_options %}
+                  <option value="{{ code }}" {% if code == focus_criterion %}selected{% endif %}>
+                    {{ code }} | {{ criterion_details[code].title }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="primary-button">Analyze Predicate</button>
+          </div>
+        </form>
+
+        <div class="sample-strip">
+          <p>Quick samples</p>
+          <div class="chip-row">
+            {% for sample in sample_predicates %}
+              <button type="button" class="sample-button" data-sample="{{ sample }}">{{ sample }}</button>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      {% if error %}
+        <section class="card error-card">
+          <h2>Input Error</h2>
+          <p>{{ error }}</p>
+        </section>
+      {% endif %}
+
+      {% if analysis %}
+        <section class="summary-grid">
+          <article class="card summary-card">
+            <p class="summary-label">Clauses</p>
+            <h2>{{ analysis.clauses|join(", ") }}</h2>
+          </article>
+          <article class="card summary-card">
+            <p class="summary-label">Truth Table Rows</p>
+            <h2>{{ analysis.row_count }}</h2>
+          </article>
+          <article class="card summary-card">
+            <p class="summary-label">Predicate Class</p>
+            <h2>{{ analysis.classification|capitalize }}</h2>
+          </article>
+          <article class="card summary-card">
+            <p class="summary-label">Focused Criterion</p>
+            <h2>{{ analysis.focus_criterion }}</h2>
+          </article>
+        </section>
+
+        <section class="card section-card focus-card">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Focused Result</p>
+              <h2>{{ criterion_details[analysis.focus_criterion].title }}</h2>
+            </div>
+            <p class="section-note">{{ criterion_details[analysis.focus_criterion].description }}</p>
+          </div>
+
+          {% set focus = analysis.focus_result %}
+          {% if analysis.focus_criterion in ["PC", "CC", "CoC"] %}
+            <div class="status-line">
+              <span class="status-pill {% if focus.satisfied %}status-good{% else %}status-warn{% endif %}">
+                {% if focus.satisfied %}Satisfied{% else %}Partial / Not Possible{% endif %}
+              </span>
+            </div>
+
+            {% if focus.notes %}
+              <div class="note-block">
+                {% for note in focus.notes %}
+                  <p>{{ note }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if focus.by_clause %}
+              <div class="clause-grid">
+                {% for clause, details in focus.by_clause.items() %}
+                  <article class="mini-card">
+                    <h3>Clause {{ clause }}</h3>
+                    <p class="{% if details.satisfied %}ok-text{% else %}warn-text{% endif %}">
+                      {% if details.satisfied %}Both truth values covered{% else %}Missing a required truth value{% endif %}
+                    </p>
+                    {% if details.true_test %}
+                      <p><strong>True:</strong> {{ details.true_test.label }}</p>
+                    {% endif %}
+                    {% if details.false_test %}
+                      <p><strong>False:</strong> {{ details.false_test.label }}</p>
+                    {% endif %}
+                  </article>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="test-list">
+              {% for row in focus.selected_tests %}
+                <article class="test-card">
+                  <p class="test-label">{{ row.label }}</p>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="clause-grid">
+              {% for clause, details in focus.by_clause.items() %}
+                <article class="mini-card">
+                  <div class="mini-card-head">
+                    <h3>Major Clause {{ clause }}</h3>
+                    <span class="status-pill {% if details.satisfied %}status-good{% else %}status-warn{% endif %}">
+                      {% if details.satisfied %}{{ details.pair_count }} pair{% if details.pair_count != 1 %}s{% endif %}{% else %}No pair{% endif %}
+                    </span>
+                  </div>
+                  <p>{{ details.explanation }}</p>
+
+                  {% if details.representative_pair %}
+                    <div class="pair-block">
+                      <p><strong>Major = F:</strong> {{ details.representative_pair.major_false.label }}</p>
+                      <p><strong>Major = T:</strong> {{ details.representative_pair.major_true.label }}</p>
+                      <p>
+                        Predicate relation:
+                        {% if details.representative_pair.predicate_same %}same{% else %}different{% endif %}
+                        | Minor clauses fixed:
+                        {% if details.representative_pair.minor_clauses_fixed %}yes{% else %}no{% endif %}
+                      </p>
+                      {% if details.representative_pair.minor_assignments %}
+                        <p>
+                          Fixed minors:
+                          {% for minor, value in details.representative_pair.minor_assignments.items() %}
+                            <span class="chip">{{ minor }}={{ "T" if value else "F" }}</span>
+                          {% endfor %}
+                        </p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+
+                  {% if details.pairs|length > 1 %}
+                    <details class="pair-details">
+                      <summary>Show all pairs</summary>
+                      {% for pair in details.pairs %}
+                        <div class="pair-block">
+                          <p><strong>Major = F:</strong> {{ pair.major_false.label }}</p>
+                          <p><strong>Major = T:</strong> {{ pair.major_true.label }}</p>
+                        </div>
+                      {% endfor %}
+                    </details>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </section>
+
+        <section class="card section-card">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Clause Activity</p>
+              <h2>Determination Summary</h2>
+            </div>
+            <p class="section-note">For each clause, this shows how often flipping that clause changes the predicate.</p>
+          </div>
+          <div class="clause-grid compact-grid">
+            {% for clause, info in analysis.determination_matrix.items() %}
+              <article class="mini-card">
+                <h3>Clause {{ clause }}</h3>
+                <p>Determining rows: {{ info.determining_rows }}</p>
+                <p>Inactive rows: {{ info.inactive_rows }}</p>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="card section-card">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Evidence Table</p>
+              <h2>Truth Table</h2>
+            </div>
+            <p class="section-note">Rows are generated in deterministic binary order using the detected clause list.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  {% for clause in analysis.clauses %}
+                    <th>{{ clause }}</th>
+                  {% endfor %}
+                  <th>P</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in analysis.truth_table %}
+                  <tr>
+                    <td>t{{ row.id }}</td>
+                    {% for clause in analysis.clauses %}
+                      <td>{{ "T" if row.assignment[clause] else "F" }}</td>
+                    {% endfor %}
+                    <td>{{ "T" if row.result else "F" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+    </main>
+
+    <script>
+      const textarea = document.getElementById("predicate");
+      document.querySelectorAll(".sample-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          textarea.value = button.dataset.sample;
+          textarea.focus();
+        });
+      });
+    </script>
+  </body>
+</html>
