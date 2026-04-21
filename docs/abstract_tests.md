@@ -1,25 +1,15 @@
 # Abstract Tests
 
-These test ideas were derived before implementation and then turned into unit tests.
-
 ## A. Parsing and evaluation
 
-1. Single variable evaluates correctly.
-   - Example: `a` with `a = True` should evaluate to `True`.
-2. NOT evaluates correctly.
-   - Example: `!a` with `a = False` should evaluate to `True`.
-3. AND evaluates correctly.
-   - Example: `a & b` with `a = True, b = False` should evaluate to `False`.
-4. OR evaluates correctly.
-   - Example: `a | b` with `a = False, b = True` should evaluate to `True`.
-5. Implication evaluates correctly.
-   - Example: `a > b` with `a = True, b = False` should evaluate to `False`.
-6. XOR evaluates correctly.
-   - Example: `a ^ b` with `a = True, b = False` should evaluate to `True`.
-7. Equivalence evaluates correctly.
-   - Example: `a = b` with `a = True, b = True` should evaluate to `True`.
-8. Parentheses override precedence correctly.
-   - Example: `a & (b | c)` should differ from `a & b | c` when assignments make grouping matter.
+1. `a` with `a = True` should be `True`.
+2. `!a` with `a = False` should be `True`.
+3. `a & b` with `a = True, b = False` should be `False`.
+4. `a | b` with `a = False, b = True` should be `True`.
+5. `a > b` with `a = True, b = False` should be `False`.
+6. `a ^ b` with `a = True, b = False` should be `True`.
+7. `a = b` with `a = True, b = True` should be `True`.
+8. Parentheses should override precedence.
 
 ## B. Truth table
 
@@ -41,18 +31,18 @@ These test ideas were derived before implementation and then turned into unit te
 
 ## E. Active clause criteria
 
-For simple predicates such as `a & b`:
+Using a simple predicate such as `a & b`:
 
 1. GACC should find a valid pair for clause `a`.
-2. CACC should find a pair where predicate results differ.
-3. RACC should keep minor clauses fixed while the major clause flips.
+2. CACC should find a pair where the predicate result changes.
+3. RACC should keep the minor clauses fixed.
 
 ## F. Inactive clause criteria
 
-For simple predicates such as `a | b`:
+Using a simple predicate such as `a | b`:
 
 1. GICC should find a pair where clause `a` flips but the predicate result stays the same.
-2. RICC should keep minor clauses fixed while clause `a` flips and remains inactive.
+2. RICC should keep the minor clauses fixed.
 
 ## G. Invalid input handling
 
